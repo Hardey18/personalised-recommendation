@@ -1,0 +1,97 @@
+import { Recommendation, SearchHistoryItem } from '@/types';
+
+export const mockRecommendations: Recommendation[] = [
+  {
+    id: '1',
+    title: 'Advanced Machine Learning Course',
+    category: 'Education',
+    description: 'Deep dive into neural networks, transformers, and modern ML architectures with hands-on projects.',
+    score: 0.97,
+    tags: ['ML', 'AI', 'Python', 'Deep Learning'],
+  },
+  {
+    id: '2',
+    title: 'System Design Interview Prep',
+    category: 'Career',
+    description: 'Comprehensive guide to designing scalable distributed systems for top tech company interviews.',
+    score: 0.93,
+    tags: ['System Design', 'Interviews', 'Engineering'],
+  },
+  {
+    id: '3',
+    title: 'React Performance Optimization',
+    category: 'Technology',
+    description: 'Master memoization, code splitting, lazy loading, and rendering optimization patterns in React.',
+    score: 0.91,
+    tags: ['React', 'JavaScript', 'Web Dev', 'Performance'],
+  },
+  {
+    id: '4',
+    title: 'Building AI-Powered Products',
+    category: 'Business',
+    description: 'A product management framework for integrating AI capabilities into customer-facing products.',
+    score: 0.88,
+    tags: ['AI', 'Product', 'Strategy'],
+  },
+  {
+    id: '5',
+    title: 'GraphQL & Apollo Best Practices',
+    category: 'Technology',
+    description: 'Production-ready GraphQL patterns, caching strategies, and federation for large-scale apps.',
+    score: 0.85,
+    tags: ['GraphQL', 'API', 'Backend'],
+  },
+  {
+    id: '6',
+    title: 'The Lean Startup Methodology',
+    category: 'Business',
+    description: 'Build, measure, learn loops for rapid product validation and sustainable growth strategies.',
+    score: 0.82,
+    tags: ['Startup', 'Growth', 'Strategy'],
+  },
+];
+
+export const mockHistory: SearchHistoryItem[] = [
+  {
+    id: 'h1',
+    query: 'Best resources to learn machine learning as a software engineer',
+    context: 'I have 3 years of Python experience and want to transition into ML roles',
+    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    resultsCount: 6,
+    domain: 'Education',
+    recommendations: mockRecommendations,
+  },
+  {
+    id: 'h2',
+    query: 'Recommend productivity tools for remote dev teams',
+    context: 'Team of 5 working across 3 time zones',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+    resultsCount: 4,
+    domain: 'Productivity',
+    recommendations: mockRecommendations.slice(0, 4),
+  },
+  {
+    id: 'h3',
+    query: 'Books on system design and distributed systems',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+    resultsCount: 5,
+    domain: 'Education',
+    recommendations: mockRecommendations.slice(0, 5),
+  },
+  {
+    id: 'h4',
+    query: 'Next.js vs Remix for building SaaS apps',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
+    resultsCount: 3,
+    domain: 'Technology',
+    recommendations: mockRecommendations.slice(2, 5),
+  },
+  {
+    id: 'h5',
+    query: 'Investment strategies for tech professionals in their 30s',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(),
+    resultsCount: 6,
+    domain: 'Finance',
+    recommendations: mockRecommendations,
+  },
+];

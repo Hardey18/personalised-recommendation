@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-syne: 'Syne', sans-serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --font-dm-mono: 'DM Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-dm-sans);
+  background-color: #FDFCF8;
+  color: #0A0F1E;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #BBCFFF;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6B8EF5;
+}
+
+/* Selection */
+::selection {
+  background-color: #BBCFFF;
+  color: #141B42;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #4B6EE8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-500 text-white font-display font-semibold text-sm rounded-xl
+           hover:bg-brand-600 active:bg-brand-700
+           transition-all duration-200 shadow-card hover:shadow-elevated
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-500 disabled:hover:shadow-card;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-brand-600 font-display font-semibold text-sm rounded-xl
+           border border-brand-200 hover:bg-brand-50 active:bg-brand-100
+           transition-all duration-200 shadow-soft
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-slate-600 font-medium text-sm rounded-lg
+           hover:bg-cream-200 active:bg-cream-200 transition-all duration-150;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl border border-cream-200 shadow-soft p-6;
+  }
+
+  .input-base {
+    @apply w-full px-4 py-3 bg-cream-100 border border-cream-200 rounded-xl text-sm text-slate-900
+           placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400
+           transition-all duration-200;
+  }
+
+  .input-error {
+    @apply border-red-300 bg-red-50 focus:ring-red-200 focus:border-red-400;
+  }
+
+  .tag {
+    @apply inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium font-mono;
+  }
+}
