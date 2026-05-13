@@ -1,6 +1,6 @@
 # KoreRec — Frontend
 
-Personalised AI recommendation engine frontend built for the hackathon.
+Personalised AI recommendation engine
 
 ## Tech Stack
 
