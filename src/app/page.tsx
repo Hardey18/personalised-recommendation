@@ -59,7 +59,7 @@ export default function LandingPage() {
         </div>
         <div className="flex items-center gap-3">
           <Link href="/login" className="btn-ghost text-sm">Sign in</Link>
-          <Link href="/login" className="btn-primary text-sm px-4 py-2">
+          <Link href="/register" className="btn-primary text-sm px-4 py-2">
             Get Started <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -111,7 +111,7 @@ export default function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <Link href="/login" className="btn-primary">
+          <Link href="/register" className="btn-primary">
             Start exploring <ArrowRight className="w-4 h-4" />
           </Link>
           <button className="btn-secondary">
@@ -190,7 +190,7 @@ export default function LandingPage() {
             Your personalised intelligence engine awaits.
           </p>
           <Link
-            href="/login"
+            href="/register"
             className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-brand-600 font-display font-semibold rounded-xl shadow-elevated hover:shadow-glow hover:-translate-y-0.5 transition-all duration-200"
           >
             Get started free <ArrowRight className="w-4 h-4" />

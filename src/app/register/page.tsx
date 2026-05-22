@@ -6,41 +6,36 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Sparkles, ArrowLeft, Mail, Lock, AlertCircle } from 'lucide-react';
-import { useLogin } from '@/hooks/useAuth';
+import { Eye, EyeOff, Sparkles, ArrowLeft, Mail, Lock, AlertCircle, User } from 'lucide-react';
+import { useRegister } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
-const loginSchema = z.object({
+const registerSchema = z.object({
+  firstName: z.string().min(1, 'First name is required').min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(1, 'Last name is required').min(2, 'Last name must be at least 2 characters'),
   email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required').min(6, 'Password must be at least 6 characters'),
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type RegisterForm = z.infer<typeof registerSchema>;
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const { mutate: login, isPending } = useLogin();
-  const { isAuthenticated } = useAuthStore();
+  const { mutate: registerUser, isPending } = useRegister();
   const router = useRouter();
-
-  useEffect(() => {
-    if (isAuthenticated) router.replace('/dashboard');
-  }, [isAuthenticated, router]);
 
   const {
     register,
     handleSubmit,
     formState: { errors, touchedFields },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
     mode: 'onBlur',
   });
 
-  const onSubmit = (data: LoginForm) => {
-    login(data);
+  const onSubmit = (data: RegisterForm) => {
+    registerUser(data);
   };
 
   return (
@@ -55,7 +50,7 @@ export default function LoginPage() {
           <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <span className="font-display font-bold text-white text-lg">NexRec</span>
+          <span className="font-display font-bold text-white text-lg">KoreRec</span>
         </Link>
 
         <div className="z-10">
@@ -67,10 +62,10 @@ export default function LoginPage() {
             ))}
           </div>
           <h2 className="font-display font-bold text-4xl text-white leading-tight mb-4">
-            Intelligence that adapts<br />to your world.
+            Start your AI-driven<br />journey today.
           </h2>
           <p className="text-brand-100 text-sm leading-relaxed max-w-xs">
-            Personalised recommendations powered by agentic AI — contextual, conversational, always relevant.
+            Join KoreRec and experience personalised recommendations that evolve with your preferences.
           </p>
         </div>
 
@@ -99,7 +94,7 @@ export default function LoginPage() {
             <div className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center">
               <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-display font-bold text-slate-950">NexRec</span>
+            <span className="font-display font-bold text-slate-950">KoreRec</span>
           </Link>
         </div>
 
@@ -116,11 +111,71 @@ export default function LoginPage() {
             </Link>
 
             <div className="mb-8">
-              <h1 className="font-display font-bold text-3xl text-slate-950 mb-2">Welcome back</h1>
-              <p className="text-slate-400 text-sm">Sign in to your NexRec account to continue.</p>
+              <h1 className="font-display font-bold text-3xl text-slate-950 mb-2">Create account</h1>
+              <p className="text-slate-400 text-sm">Join KoreRec and get started with AI recommendations.</p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+            <form noValidate className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+              {/* First Name */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700" htmlFor="firstName">
+                  First Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    className={cn(
+                      'input-base pl-10',
+                      errors.firstName && touchedFields.firstName && 'input-error'
+                    )}
+                    {...register('firstName')}
+                  />
+                </div>
+                {errors.firstName && touchedFields.firstName && (
+                  <motion.p
+                    className="flex items-center gap-1.5 text-xs text-red-500"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {errors.firstName.message}
+                  </motion.p>
+                )}
+              </div>
+
+              {/* Last Name */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700" htmlFor="lastName">
+                  Last Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    className={cn(
+                      'input-base pl-10',
+                      errors.lastName && touchedFields.lastName && 'input-error'
+                    )}
+                    {...register('lastName')}
+                  />
+                </div>
+                {errors.lastName && touchedFields.lastName && (
+                  <motion.p
+                    className="flex items-center gap-1.5 text-xs text-red-500"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {errors.lastName.message}
+                  </motion.p>
+                )}
+              </div>
+
               {/* Email */}
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-700" htmlFor="email">
@@ -152,23 +207,21 @@ export default function LoginPage() {
                 )}
               </div>
 
+
               {/* Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-medium text-slate-700" htmlFor="password">
                     Password
                   </label>
-                  <button type="button" className="text-xs text-brand-500 hover:text-brand-600 font-medium transition-colors">
-                    Forgot password?
-                  </button>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
+                    placeholder="Create a password"
+                    autoComplete="new-password"
                     className={cn(
                       'input-base pl-10 pr-10',
                       errors.password && touchedFields.password && 'input-error'
@@ -203,18 +256,18 @@ export default function LoginPage() {
                 {isPending ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Signing in…
+                    Creating account…
                   </>
                 ) : (
-                  'Sign in to NexRec'
+                  'Register for KoreRec'
                 )}
               </button>
             </form>
 
             <p className="text-center text-xs text-slate-400 mt-6">
-              Don&apos;t have an account?{' '}
-              <Link href="/register" className="text-brand-500 font-medium hover:text-brand-600 transition-colors">
-                Create an account
+              Already have an account?{' '}
+              <Link href="/login" className="text-brand-500 font-medium hover:text-brand-600 transition-colors">
+                Sign in here
               </Link>
             </p>
           </motion.div>

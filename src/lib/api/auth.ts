@@ -1,13 +1,16 @@
 import apiClient from '@/lib/axios';
-import { AuthResponse, LoginPayload } from '@/types';
+import { LoginPayload, LoginResponse, RegisterPayload, RegisterResponse } from '@/types';
 
 export const authService = {
-  login: async (payload: LoginPayload): Promise<AuthResponse> => {
-    const { data } = await apiClient.post<AuthResponse>('auth/login', payload);
+  login: async (payload: LoginPayload): Promise<LoginResponse> => {
+    const { data } = await apiClient.post<LoginResponse>('Auth/login', payload);
+    return data;
+  },
+  register: async (payload: RegisterPayload): Promise<RegisterResponse> => {
+    const { data } = await apiClient.post<RegisterResponse>('Auth/register', payload);
     return data;
   },
   logout: () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
+    // Nothing server-side needed; token is stateless
   },
 };

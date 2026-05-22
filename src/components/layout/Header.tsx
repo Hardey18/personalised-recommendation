@@ -14,13 +14,13 @@ const pageTitles: Record<string, { title: string; desc: string }> = {
 
 export function Header() {
   const pathname = usePathname();
-  const { user } = useAuthStore();
+  const { profile: user } = useAuthStore();
 
   // Match exact or dynamic routes
   const matchedKey = Object.keys(pageTitles).find(
     (k) => pathname === k || pathname.startsWith(k + '/')
   );
-  const page = matchedKey ? pageTitles[matchedKey] : { title: 'KoreRec', desc: '' };
+  const page = matchedKey ? pageTitles[matchedKey] : { title: 'NexRec', desc: '' };
 
   return (
     <header className="h-16 bg-white/80 backdrop-blur-md border-b border-cream-200 flex items-center justify-between px-6 sticky top-0 z-10 shrink-0">
@@ -43,9 +43,9 @@ export function Header() {
             className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-cream-100 transition-colors"
           >
             <div className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center text-white text-xs font-display font-bold">
-              {getInitials(user.name)}
+              {getInitials(`${user.firstName} ${user.lastName}`)}
             </div>
-            <span className="text-sm font-medium text-slate-700 hidden sm:block">{user.name}</span>
+            <span className="text-sm font-medium text-slate-700 hidden sm:block">{user.firstName} {user.lastName}</span>
           </Link>
         )}
       </div>

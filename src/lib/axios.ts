@@ -1,29 +1,34 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ai-recommendation.runasp.net/api/',
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 30000, // AI endpoints can be slow
 });
 
-// Attach token from localStorage if available
+// Attach token from Zustand persisted storage
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
+    try {
+      const stored = localStorage.getItem('nexrec-auth');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const token = parsed?.state?.accessToken;
+        if (token && config.headers) {
+          config.headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+    } catch { /* ignore */ }
   }
   return config;
 });
 
-// Response interceptor: handle 401
+// 401 → clear auth and redirect
 apiClient.interceptors.response.use(
   (res) => res,
   (error: AxiosError) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('user');
+      localStorage.removeItem('nexrec-auth');
       window.location.href = '/login';
     }
     return Promise.reject(error);

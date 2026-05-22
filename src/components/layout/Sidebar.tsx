@@ -21,7 +21,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const logout = useLogout();
-  const { user } = useAuthStore();
+  const { profile: user } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -42,7 +42,7 @@ export function Sidebar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            KoreRec
+            NexRec
           </motion.span>
         )}
       </div>
@@ -96,11 +96,11 @@ export function Sidebar() {
             collapsed && 'justify-center'
           )}>
             <div className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center text-white text-xs font-display font-bold shrink-0">
-              {getInitials(user.name)}
+              {getInitials(`${user.firstName} ${user.lastName}`)}
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-800 truncate">{user.name}</p>
+                <p className="text-xs font-semibold text-slate-800 truncate">{user.firstName} {user.lastName}</p>
                 <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
               </div>
             )}
@@ -110,7 +110,7 @@ export function Sidebar() {
 
       {/* Collapse toggle */}
       <button
-        title='Left'
+        title='Collapse'
         onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-20 w-6 h-6 bg-white border border-cream-200 rounded-full flex items-center justify-center shadow-soft hover:bg-cream-100 transition-colors z-10"
       >

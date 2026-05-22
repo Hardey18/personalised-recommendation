@@ -1,36 +1,38 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from '@/types';
+import { UserProfile } from '@/types';
 
 interface AuthState {
-  user: User | null;
+  profile: UserProfile | null;
   accessToken: string | null;
+  userId: string | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, token: string) => void;
+  setToken: (token: string, userId: string) => void;
+  setProfile: (profile: UserProfile) => void;
   clearAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user: null,
+      profile: null,
       accessToken: null,
+      userId: null,
       isAuthenticated: false,
-      setAuth: (user, accessToken) => {
-        localStorage.setItem('accessToken', accessToken);
-        set({ user, accessToken, isAuthenticated: true });
+      setToken: (accessToken, userId) => {
+        set({ accessToken, userId, isAuthenticated: true });
       },
+      setProfile: (profile) => set({ profile }),
       clearAuth: () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('user');
-        set({ user: null, accessToken: null, isAuthenticated: false });
+        set({ profile: null, accessToken: null, userId: null, isAuthenticated: false });
       },
     }),
     {
-      name: 'KoreRec-auth',
+      name: 'nexrec-auth',
       partialize: (state) => ({
-        user: state.user,
+        profile: state.profile,
         accessToken: state.accessToken,
+        userId: state.userId,
         isAuthenticated: state.isAuthenticated,
       }),
     }

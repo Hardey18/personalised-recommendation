@@ -1,181 +1,352 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
-import { mockRecommendations, mockHistory } from '@/lib/mockData';
-import { Recommendation, SearchHistoryItem } from '@/types';
+import { useConversation, parseAssistantContent } from '@/hooks/useConversation';
+import { ConversationMessage, ParsedAIResponse } from '@/types';
 import {
-  Sparkles, History, TrendingUp, Zap, ArrowRight, Clock, MessageSquare,
+  Sparkles, Send, Plus, MessageSquare, Zap, Brain,
 } from 'lucide-react';
-import Link from 'next/link';
-import { formatRelativeTime } from '@/lib/utils';
-import { SearchBar } from '../../../components/features/SearchBar';
-import { StatCard } from '../../../components/ui/StatCard';
-import { RecommendationSkeleton } from '../../../components/ui/Skeleton';
-import { RecommendationCard } from '../../../components/features/RecommendationCard';
+import { cn } from '@/lib/utils';
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+const SECTION_COLORS: Record<string, string> = {
+  goals:       'bg-brand-50 border-brand-100 text-brand-700',
+  preferences: 'bg-purple-50 border-purple-100 text-purple-700',
+  constraints: 'bg-amber-50 border-amber-100 text-amber-700',
+  domains:     'bg-emerald-50 border-emerald-100 text-emerald-700',
+};
+function sectionColor(label: string) {
+  const key = label.toLowerCase();
+  return SECTION_COLORS[key] ?? 'bg-slate-50 border-slate-100 text-slate-700';
+}
+
+function InferredContextCard({ parsed }: { parsed: ParsedAIResponse }) {
+  const hasSections = parsed.sections.length > 0;
+  if (!hasSections && !parsed.contextSummary && !parsed.emotion) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.25 }}
+      className="mt-3 bg-brand-50/60 border border-brand-100 rounded-xl p-3 space-y-3"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Brain className="w-3.5 h-3.5 text-brand-400" />
+          <span className="text-[10px] font-mono text-brand-500 uppercase tracking-widest">
+            Inferred context
+          </span>
+        </div>
+        {parsed.emotion && (
+          <span className="text-[10px] font-mono px-2 py-0.5 bg-white border border-brand-100 rounded-full text-brand-500 capitalize">
+            {parsed.emotion}
+          </span>
+        )}
+      </div>
+
+      {/* Sections — one group of badges per section */}
+      {parsed.sections.map((section) => (
+        <div key={section.label}>
+          <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5">
+            {section.label}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {section.entries.map((entry) => (
+              <span
+                key={entry.key}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs border',
+                  sectionColor(section.label)
+                )}
+              >
+                <span className="opacity-60 font-mono text-[10px]">{entry.key}:</span>
+                <span className="font-medium capitalize">{entry.value}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Context summary */}
+      {parsed.contextSummary && (
+        <p className="text-xs text-slate-500 italic border-t border-brand-100 pt-2 leading-relaxed">
+          {parsed.contextSummary}
+        </p>
+      )}
+    </motion.div>
+  );
+}
+
+function ChatMessage({ message }: { message: ConversationMessage }) {
+  const isUser = message.role === 0;
+  const isAssistant = message.role === 2;
+  const time = new Date(message.timestamp).toLocaleTimeString([], {
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  if (isUser) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex justify-end"
+      >
+        <div className="max-w-[75%] bg-brand-500 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-card">
+          <p className="text-sm leading-relaxed">{message.content}</p>
+          <p className="text-[10px] text-brand-200 mt-1.5 text-right font-mono">{time}</p>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (isAssistant) {
+    const { plain, parsed, recommendationCount } = parseAssistantContent(message.content);
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex gap-3"
+      >
+        <div className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center shrink-0 mt-1">
+          <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+        </div>
+        <div className="flex-1 max-w-[82%]">
+          <div className="bg-white border border-cream-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-soft">
+            {recommendationCount > 0 && (
+              <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-cream-200">
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-semibold text-amber-600">
+                  {recommendationCount} recommendation{recommendationCount !== 1 ? 's' : ''} found
+                </span>
+              </div>
+            )}
+            {plain ? (
+              <p className="text-sm text-slate-700 leading-relaxed">{plain}</p>
+            ) : (
+              <p className="text-sm text-slate-400 italic">Analysing your request…</p>
+            )}
+            <p className="text-[10px] text-slate-300 mt-2 font-mono">{time}</p>
+          </div>
+          {parsed && <InferredContextCard parsed={parsed} />}
+        </div>
+      </motion.div>
+    );
+  }
+
+  return null;
+}
+
+function TypingIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      className="flex gap-3"
+    >
+      <div className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center shrink-0">
+        <Sparkles className="w-3.5 h-3.5 text-brand-500 animate-pulse-soft" />
+      </div>
+      <div className="bg-white border border-cream-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-soft">
+        <div className="flex gap-1.5 items-center h-5">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="w-1.5 h-1.5 bg-brand-300 rounded-full animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+const STARTER_PROMPTS = [
+  'I need a pair of sneakers for running',
+  'Recommend some books on machine learning',
+  'Suggest productivity tools for remote teams',
+  'Find me beginner resources for investing',
+];
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
-  const [results, setResults] = useState<Recommendation[]>([]);
-  const [currentQuery, setCurrentQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const { profile, userId } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [input, setInput] = useState('');
+  const [hasStarted, setHasStarted] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const recentHistory = mockHistory.slice(0, 3);
+  const {
+    conversation,
+    isSending,
+    isStarting,
+    sendMessage,
+    resetConversation,
+  } = useConversation();
 
-  const handleSearch = async (query: string, context?: string) => {
-    setCurrentQuery(query);
-    setIsSearching(true);
-    setHasSearched(true);
-    setResults([]);
-
-    // Simulate API call delay
-    await new Promise((r) => setTimeout(r, 1500));
-
-    // Mock: shuffle and return recommendations
-    const shuffled = [...mockRecommendations].sort(() => Math.random() - 0.5);
-    setResults(shuffled);
-    setIsSearching(false);
-  };
+  const messages = conversation?.messages ?? [];
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = profile?.firstName ?? 'there';
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isSending]);
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || isSending) return;
+    setInput('');
+    setHasStarted(true);
+    await sendMessage(text);
+    // Invalidate history so the History page reflects the new conversation
+    queryClient.invalidateQueries({ queryKey: ['conversation-history', userId] });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleStarter = (prompt: string) => {
+    setInput(prompt);
+    setHasStarted(true);
+    inputRef.current?.focus();
+  };
+
+  const handleReset = () => {
+    resetConversation();
+    setHasStarted(false);
+    setInput('');
+  };
 
   return (
-    <div className="px-6 py-8 max-w-5xl mx-auto space-y-10">
-      {/* Greeting */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <p className="text-sm text-slate-400 font-medium mb-1">{greeting} 👋</p>
-        <h2 className="font-display font-bold text-2xl md:text-3xl text-slate-950">
-          What are you looking for today, {user?.name?.split(' ')[0]}?
-        </h2>
-      </motion.div>
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-3xl mx-auto px-4 md:px-6">
 
-      {/* Search */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.5 }}
-      >
-        <SearchBar onSearch={handleSearch} isLoading={isSearching} />
-      </motion.div>
-
-      {/* Stats row */}
-      {!hasSearched && (
-        <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <StatCard title="Total Searches" value={mockHistory.length} icon={<Sparkles className="w-5 h-5" />} color="bg-brand-50 text-brand-500" index={0} />
-          <StatCard title="Recommendations" value="28" subtitle="this week" icon={<Zap className="w-5 h-5" />} color="bg-amber-50 text-amber-500" index={1} />
-          <StatCard title="Domains Explored" value="5" icon={<TrendingUp className="w-5 h-5" />} color="bg-emerald-50 text-emerald-600" index={2} />
-          <StatCard title="AI Turns" value="12" subtitle="multi-turn sessions" icon={<MessageSquare className="w-5 h-5" />} color="bg-purple-50 text-purple-500" index={3} />
-        </motion.div>
-      )}
-
-      {/* Search Results */}
+      {/* ── Empty state / greeting ── */}
       <AnimatePresence>
-        {hasSearched && (
+        {!hasStarted && messages.length === 0 && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="flex-1 flex flex-col items-center justify-center text-center pb-8"
           >
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="font-display font-semibold text-slate-900 text-base">
-                  {isSearching ? 'Reasoning through your query…' : `${results.length} recommendations`}
-                </h3>
-                {!isSearching && currentQuery && (
-                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> for &ldquo;{currentQuery}&rdquo;
-                  </p>
-                )}
-              </div>
-              {!isSearching && results.length > 0 && (
-                <button
-                  onClick={() => { setHasSearched(false); setResults([]); }}
-                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  Clear results
-                </button>
-              )}
+            <div className="w-14 h-14 rounded-2xl bg-brand-500 flex items-center justify-center shadow-glow mb-5">
+              <Sparkles className="w-7 h-7 text-white" />
             </div>
-
-            {isSearching ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <RecommendationSkeleton key={i} />
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {results.map((rec, i) => (
-                  <RecommendationCard key={rec.id} rec={rec} index={i} featured={i === 0} />
-                ))}
-              </div>
-            )}
+            <p className="text-sm text-slate-400 mb-1">{greeting} 👋</p>
+            <h2 className="font-display font-bold text-2xl md:text-3xl text-slate-950 mb-3">
+              What are you looking for, {firstName}?
+            </h2>
+            <p className="text-sm text-slate-400 max-w-sm leading-relaxed mb-8">
+              Describe what you need in plain language — I&apos;ll reason through your context and surface the most relevant recommendations.
+            </p>
+            {/* Starter prompts */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
+              {STARTER_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => handleStarter(prompt)}
+                  className="text-left px-4 py-3 bg-white border border-cream-200 rounded-xl text-sm text-slate-600 hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-700 transition-all duration-150 shadow-soft group"
+                >
+                  <span className="text-brand-400 mr-1.5 group-hover:text-brand-500">→</span>
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Recent History */}
-      {!hasSearched && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          <div className="flex items-center justify-between mb-5">
+      {/* ── Messages ── */}
+      {(hasStarted || messages.length > 0) && (
+        <div className="flex-1 overflow-y-auto py-6 space-y-5 scroll-smooth">
+          {/* Conversation header bar */}
+          <div className="flex items-center justify-between mb-2 sticky top-0 bg-cream-50/80 backdrop-blur-sm py-2 -mx-4 px-4 z-10">
             <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-slate-400" />
-              <h3 className="font-display font-semibold text-slate-900 text-base">Recent searches</h3>
+              <MessageSquare className="w-4 h-4 text-slate-400" />
+              <span className="text-xs font-medium text-slate-500">
+                {conversation ? `Conversation · ${messages.filter(m=>m.role===0).length} message${messages.filter(m=>m.role===0).length !== 1 ? 's' : ''}` : 'Starting…'}
+              </span>
             </div>
-            <Link href="/history" className="text-xs text-brand-500 hover:text-brand-600 font-medium flex items-center gap-1 transition-colors">
-              View all <ArrowRight className="w-3 h-3" />
-            </Link>
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> New conversation
+            </button>
           </div>
 
-          <div className="space-y-3">
-            {recentHistory.map((item, i) => (
-              <Link href={`/history/${item.id}`} key={item.id}>
-                <motion.div
-                  className="card flex items-start gap-4 hover:shadow-elevated hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.35 + i * 0.07, duration: 0.4 }}
-                >
-                  <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-4 h-4 text-brand-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate group-hover:text-brand-600 transition-colors">
-                      {item.query}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />{formatRelativeTime(item.timestamp)}
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400">{item.resultsCount} results</span>
-                      {item.domain && (
-                        <span className="tag bg-cream-200 text-slate-500">{item.domain}</span>
-                      )}
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-brand-400 shrink-0 mt-1 transition-colors" />
-                </motion.div>
-              </Link>
-            ))}
-          </div>
-        </motion.div>
+          {messages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
+          ))}
+
+          <AnimatePresence>
+            {isSending && <TypingIndicator />}
+          </AnimatePresence>
+
+          <div ref={messagesEndRef} />
+        </div>
       )}
+
+      {/* ── Input bar ── */}
+      <div className="py-4 shrink-0">
+        <div className={cn(
+          'bg-white border-2 rounded-2xl shadow-card transition-all duration-200',
+          'focus-within:border-brand-400 focus-within:shadow-elevated border-cream-200'
+        )}>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Describe what you're looking for…"
+            rows={2}
+            className="w-full px-4 pt-3.5 pb-2 bg-transparent text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none resize-none leading-relaxed"
+          />
+          <div className="flex items-center justify-between px-3 pb-2.5">
+            <p className="text-[10px] text-slate-300 font-mono flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> AI-powered · press Enter to send
+            </p>
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isSending || isStarting}
+              className={cn(
+                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150',
+                input.trim() && !isSending
+                  ? 'bg-brand-500 text-white hover:bg-brand-600 shadow-card'
+                  : 'bg-cream-200 text-slate-400 cursor-not-allowed'
+              )}
+            >
+              {isSending || isStarting ? (
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+              {isSending ? 'Thinking…' : isStarting ? 'Starting…' : 'Send'}
+            </button>
+          </div>
+        </div>
+        <p className="text-center text-[10px] text-slate-300 mt-2">
+          Multi-turn · contextual · agentic reasoning
+        </p>
+      </div>
     </div>
   );
 }
