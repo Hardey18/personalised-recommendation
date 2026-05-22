@@ -79,6 +79,7 @@ export interface Conversation {
   id: string;
   userId: string;
   startedAt: string;
+  title?: string;
   messages: ConversationMessage[];
 }
 

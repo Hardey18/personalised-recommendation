@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authService } from '@/lib/api/auth';
 import { userService } from '@/lib/api/user';
 import { useAuthStore } from '@/store/authStore';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 export function useLogin() {
   const { setToken, setProfile } = useAuthStore();
+  const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
@@ -22,6 +23,9 @@ export function useLogin() {
         toast.error('Invalid token received. Please try again.');
         return;
       }
+
+      queryClient.clear();
+
       // Store token first so axios interceptor can use it immediately
       setToken(data.token, claims.sub);
 
@@ -68,11 +72,13 @@ export function useRegister() {
 
 export function useLogout() {
   const { clearAuth } = useAuthStore();
+  const queryClient = useQueryClient();
   const router = useRouter();
-
+ 
   return () => {
     authService.logout();
     clearAuth();
+    queryClient.clear();
     toast.success('Logged out successfully');
     router.push('/login');
   };

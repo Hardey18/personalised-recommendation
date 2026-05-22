@@ -4,34 +4,17 @@ import { useAuthStore } from '@/store/authStore';
 import { Conversation } from '@/types';
 import { parseAssistantContent, getDomainFromParsed } from './useConversation';
 
-const STORAGE_KEY = 'nexrec-conversation-ids';
-
-export function getStoredConversationIds(userId: string): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(`${STORAGE_KEY}-${userId}`);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function storeConversationId(userId: string, id: string) {
-  if (typeof window === 'undefined') return;
-  const existing = getStoredConversationIds(userId);
-  if (!existing.includes(id)) {
-    localStorage.setItem(
-      `${STORAGE_KEY}-${userId}`,
-      JSON.stringify([id, ...existing])
-    );
-  }
-}
-
-/** Derives preview text and domain label from a conversation */
+/** Derives a preview string and domain tag from a conversation object */
 function summariseConversation(conv: Conversation) {
-  const firstUser = conv.messages.find((m) => m.role === 0);
-  const lastAssistant = [...conv.messages].reverse().find((m) => m.role === 2);
+  // The API now returns a `title` field — use it as the preview when available.
+  // Fall back to the first user message content, then a generic label.
+  const firstUser = conv.messages?.find((m) => m.role === 0);
+  const preview = conv.title || firstUser?.content || 'Conversation';
 
+  // Derive a domain tag from the last assistant message's inferred context
+  const lastAssistant = conv.messages
+    ? [...conv.messages].reverse().find((m) => m.role === 2)
+    : undefined;
   let domain: string | undefined;
   if (lastAssistant) {
     const { parsed } = parseAssistantContent(lastAssistant.content);
@@ -40,35 +23,28 @@ function summariseConversation(conv: Conversation) {
 
   return {
     id: conv.id,
-    preview: firstUser?.content ?? 'Conversation',
+    preview,
     startedAt: conv.startedAt,
-    messageCount: conv.messages.filter((m) => m.role === 0).length,
+    messageCount: conv.messages?.filter((m) => m.role === 0).length ?? 0,
     domain,
   };
 }
 
-/** Lists all conversations (local ID registry → fetch each from API) */
+/** Fetches the authenticated user's full conversation list from the API */
 export function useConversationHistory() {
-  const { userId } = useAuthStore();
+  const { isAuthenticated, userId } = useAuthStore();
 
   const { data, isLoading } = useQuery({
+    // Keyed by userId so switching accounts always fetches fresh data
     queryKey: ['conversation-history', userId],
     queryFn: async () => {
-      if (!userId) return [];
-      const ids = getStoredConversationIds(userId);
-      if (ids.length === 0) return [];
-
-      const results = await Promise.allSettled(
-        ids.map((id) => conversationService.getConversation(id))
-      );
-
-      return results
-        .filter((r): r is PromiseFulfilledResult<Conversation> => r.status === 'fulfilled')
-        .map((r) => summariseConversation(r.value))
+      const conversations = await conversationService.list();
+      return conversations
+        .map(summariseConversation)
         .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
     },
-    enabled: !!userId,
-    staleTime: 0,          // always re-fetch when invalidated
+    enabled: isAuthenticated && !!userId,
+    staleTime: 0,
     gcTime: 5 * 60 * 1000,
   });
 
@@ -81,7 +57,16 @@ export function useConversationDetail(id: string) {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['conversation', id],
-    queryFn: () => conversationService.getConversation(id),
+    queryFn: async () => {
+      const conv = await conversationService.getConversation(id);
+      // Sort messages chronologically — API order is not guaranteed
+      return {
+        ...conv,
+        messages: [...conv.messages].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        ),
+      };
+    },
     enabled: !!id && isAuthenticated,
     staleTime: 0,
   });

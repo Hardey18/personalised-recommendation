@@ -2,8 +2,6 @@ import { useState, useCallback, useRef } from 'react';
 import { conversationService } from '@/lib/api/conversation';
 import { Conversation, ConversationMessage, JsonValue, ParsedAIResponse } from '@/types';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/store/authStore';
-import { storeConversationId } from './useConversationHistory';
 
 // ─── Dynamic AI response parser ───────────────────────────────────────────────
 
@@ -132,12 +130,26 @@ export function getDomainFromParsed(parsed: ParsedAIResponse | null): string | u
 
 // ─── useConversation hook ─────────────────────────────────────────────────────
 
+/** Sort a message array chronologically by timestamp */
+function sortMessages(msgs: ConversationMessage[]): ConversationMessage[] {
+  return [...msgs].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+}
+
 export function useConversation() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const conversationRef = useRef<Conversation | null>(null);
-  const { userId } = useAuthStore();
+
+  /** Load an existing conversation (e.g. from history) into the hook so
+   *  subsequent sendMessage calls continue that same thread. */
+  const loadConversation = useCallback((conv: Conversation) => {
+    const sorted = { ...conv, messages: sortMessages(conv.messages) };
+    conversationRef.current = sorted;
+    setConversation(sorted);
+  }, []);
 
   const sendMessage = useCallback(
     async (message: string): Promise<ConversationMessage | null> => {
@@ -150,8 +162,6 @@ export function useConversation() {
           conv = await conversationService.start();
           conversationRef.current = conv;
           setConversation(conv);
-          // ✅ Always persist the ID here — this is the only start path now
-          if (userId) storeConversationId(userId, conv.id);
         } catch {
           toast.error('Could not start a conversation. Please try again.');
           setIsStarting(false);
@@ -179,14 +189,15 @@ export function useConversation() {
         const assistantMsg = await conversationService.sendMessage(conv.id, message);
         setConversation((prev) => {
           if (!prev) return prev;
+          // Remove optimistic, append confirmed user msg + assistant reply, re-sort
           const msgs = prev.messages.filter((m) => m.id !== optimisticUserMsg.id);
           return {
             ...prev,
-            messages: [
+            messages: sortMessages([
               ...msgs,
               { ...optimisticUserMsg, id: `user-${Date.now()}` },
               assistantMsg,
-            ],
+            ]),
           };
         });
         return assistantMsg;
@@ -202,7 +213,7 @@ export function useConversation() {
         setIsSending(false);
       }
     },
-    [userId]
+    [/* no external deps — conversationRef is stable */]
   );
 
   const resetConversation = useCallback(() => {
@@ -214,6 +225,7 @@ export function useConversation() {
     conversation,
     isStarting,
     isSending,
+    loadConversation,
     sendMessage,
     resetConversation,
   };
