@@ -43,6 +43,13 @@ export interface UserProfile {
   createdAt: string;
 }
 
+/** Body for PUT User/profile */
+export interface UpdateProfilePayload {
+  firstName: string;
+  lastName: string;
+  dateOfBirth?: string | null;
+}
+
 // ─── Behavior analysis ───────────────────────────────────────────────────────
 
 export interface BehaviorAnalysis {

@@ -1,16 +1,30 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
 import { useLogout } from '@/hooks/useAuth';
-import { useProfile, useBehaviorAnalysis } from '@/hooks/useUser';
-import { getInitials, formatDate } from '@/lib/utils';
+import { useProfile, useUpdateProfile, useBehaviorAnalysis } from '@/hooks/useUser';
+import { getInitials, formatDate, cn } from '@/lib/utils';
 import {
-  User, Mail, Calendar, Shield, Zap, LogOut,
-  TrendingUp, ChevronRight, Brain, Smile, MessageSquare,
-  BarChart2, Loader2, AlertCircle,
+  User, Mail, Calendar, Shield, LogOut, ChevronRight,
+  Brain, Smile, MessageSquare, BarChart2, Loader2, AlertCircle,
+  Pencil, X, Check,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
+// ─── Zod schema ───────────────────────────────────────────────────────────────
+
+const editSchema = z.object({
+  firstName: z.string().min(1, 'First name is required').max(50),
+  lastName:  z.string().min(1, 'Last name is required').max(50),
+  dateOfBirth: z.string().optional(),
+});
+type EditForm = z.infer<typeof editSchema>;
+
+// ─── Score bar ────────────────────────────────────────────────────────────────
 
 function ScoreBar({ value, color }: { value: number; color: string }) {
   const pct = Math.round(value * 100);
@@ -29,16 +43,73 @@ function ScoreBar({ value, color }: { value: number; color: string }) {
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function ProfilePage() {
   const { profile, userId } = useAuthStore();
   const logout = useLogout();
 
   const { data: freshProfile, isLoading: profileLoading } = useProfile();
+  const { mutate: updateProfile, isPending: isSaving } = useUpdateProfile();
   const { data: behavior, isLoading: behaviorLoading, error: behaviorError } = useBehaviorAnalysis();
 
-  // Prefer fresh fetched data, fall back to cached store data
+  // Prefer the freshly fetched data, fall back to the Zustand-cached version
   const user = freshProfile ?? profile;
 
+  const [isEditing, setIsEditing] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<EditForm>({ resolver: zodResolver(editSchema) });
+
+  // Populate form whenever user data arrives or changes
+  useEffect(() => {
+    if (user) {
+      reset({
+        firstName:   user.firstName,
+        lastName:    user.lastName,
+        // Convert stored ISO string to the yyyy-MM-dd format <input type="date"> expects
+        dateOfBirth: user.dateOfBirth
+          ? user.dateOfBirth.split('T')[0]
+          : '',
+      });
+    }
+  }, [user, reset]);
+
+  const handleEdit = () => setIsEditing(true);
+
+  const handleCancel = () => {
+    // Reset to the current saved values and close the form
+    if (user) {
+      reset({
+        firstName:   user.firstName,
+        lastName:    user.lastName,
+        dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
+      });
+    }
+    setIsEditing(false);
+  };
+
+  const onSubmit = (data: EditForm) => {
+    updateProfile(
+      {
+        firstName:   data.firstName,
+        lastName:    data.lastName,
+        // Send null when the field is empty, otherwise send a full ISO string
+        dateOfBirth: data.dateOfBirth
+          ? new Date(data.dateOfBirth).toISOString()
+          : null,
+      },
+      {
+        onSuccess: () => setIsEditing(false),
+      }
+    );
+  };
+
+  // ── Loading / empty states ──
   if (profileLoading && !user) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -46,23 +117,17 @@ export default function ProfilePage() {
       </div>
     );
   }
-
   if (!user) return null;
 
   const fullName = `${user.firstName} ${user.lastName}`;
+  const a = behavior?.analysis;
 
-  const infoItems = [
-    { label: 'First name',    value: user.firstName,             icon: <User className="w-4 h-4" /> },
-    { label: 'Last name',     value: user.lastName,              icon: <User className="w-4 h-4" /> },
+  // Read-only info rows (non-editable fields)
+  const readOnlyItems = [
     { label: 'Email address', value: user.email,                 icon: <Mail className="w-4 h-4" /> },
-    ...(user.dateOfBirth
-      ? [{ label: 'Date of birth', value: formatDate(user.dateOfBirth), icon: <Calendar className="w-4 h-4" /> }]
-      : []),
     { label: 'User ID',       value: userId ?? user.id,          icon: <Shield className="w-4 h-4" />, mono: true },
     { label: 'Member since',  value: formatDate(user.createdAt), icon: <Calendar className="w-4 h-4" /> },
   ];
-
-  const a = behavior?.analysis;
 
   return (
     <div className="px-6 py-8 max-w-3xl mx-auto space-y-8">
@@ -98,22 +163,169 @@ export default function ProfilePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.4 }}
       >
-        <h3 className="font-display font-semibold text-slate-900 mb-4">Account information</h3>
-        <div className="card divide-y divide-cream-200 !p-0 overflow-hidden">
-          {infoItems.map(({ label, value, icon, mono }) => (
-            <div key={label} className="flex items-center gap-4 px-6 py-4 hover:bg-cream-50 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-cream-100 flex items-center justify-center text-slate-400 shrink-0">
-                {icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">{label}</p>
-                <p className={cn('text-sm font-medium mt-0.5 truncate text-slate-700', mono && 'font-mono text-xs text-slate-500')}>
-                  {value}
-                </p>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display font-semibold text-slate-900">Account information</h3>
+
+          {/* Edit / Cancel toggle */}
+          {!isEditing ? (
+            <button
+              onClick={handleEdit}
+              className="flex items-center gap-1.5 text-sm text-brand-500 hover:text-brand-600 font-medium transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit profile
+            </button>
+          ) : (
+            <button
+              onClick={handleCancel}
+              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors"
+            >
+              <X className="w-3.5 h-3.5" /> Cancel
+            </button>
+          )}
         </div>
+
+        <AnimatePresence mode="wait">
+          {/* ── Read-only view ── */}
+          {!isEditing && (
+            <motion.div
+              key="read"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="card divide-y divide-cream-200 !p-0 overflow-hidden"
+            >
+              {/* Editable fields shown as read-only rows */}
+              {[
+                { label: 'First name',    value: user.firstName,   icon: <User className="w-4 h-4" /> },
+                { label: 'Last name',     value: user.lastName,    icon: <User className="w-4 h-4" /> },
+                ...(user.dateOfBirth
+                  ? [{ label: 'Date of birth', value: formatDate(user.dateOfBirth), icon: <Calendar className="w-4 h-4" /> }]
+                  : []),
+                ...readOnlyItems,
+              ].map(({ label, value, icon, mono }: { label: string; value: string; icon: React.ReactNode; mono?: boolean }) => (
+                <div key={label} className="flex items-center gap-4 px-6 py-4 hover:bg-cream-50 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-cream-100 flex items-center justify-center text-slate-400 shrink-0">
+                    {icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">{label}</p>
+                    <p className={cn('text-sm font-medium mt-0.5 truncate text-slate-700', mono && 'font-mono text-xs text-slate-500')}>
+                      {value}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* ── Edit form ── */}
+          {isEditing && (
+            <motion.form
+              key="edit"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+              onSubmit={handleSubmit(onSubmit)}
+              noValidate
+            >
+              <div className="card !p-0 overflow-hidden divide-y divide-cream-200">
+
+                {/* First name */}
+                <div className="flex items-center gap-4 px-6 py-4">
+                  <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-400 shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-1.5">First name</p>
+                    <input
+                      {...register('firstName')}
+                      className={cn(
+                        'w-full bg-cream-100 border rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all',
+                        errors.firstName ? 'border-red-300 bg-red-50' : 'border-cream-200'
+                      )}
+                    />
+                    {errors.firstName && (
+                      <p className="text-xs text-red-500 mt-1">{errors.firstName.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Last name */}
+                <div className="flex items-center gap-4 px-6 py-4">
+                  <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-400 shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-1.5">Last name</p>
+                    <input
+                      {...register('lastName')}
+                      className={cn(
+                        'w-full bg-cream-100 border rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all',
+                        errors.lastName ? 'border-red-300 bg-red-50' : 'border-cream-200'
+                      )}
+                    />
+                    {errors.lastName && (
+                      <p className="text-xs text-red-500 mt-1">{errors.lastName.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Date of birth */}
+                <div className="flex items-center gap-4 px-6 py-4">
+                  <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-400 shrink-0">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-1.5">Date of birth</p>
+                    <input
+                      type="date"
+                      {...register('dateOfBirth')}
+                      className="w-full bg-cream-100 border border-cream-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Read-only rows remain visible while editing */}
+                {readOnlyItems.map(({ label, value, icon, mono }) => (
+                  <div key={label} className="flex items-center gap-4 px-6 py-4 bg-cream-50/50">
+                    <div className="w-8 h-8 rounded-lg bg-cream-100 flex items-center justify-center text-slate-300 shrink-0">
+                      {icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-mono text-slate-300 uppercase tracking-widest">{label}</p>
+                      <p className={cn('text-sm font-medium mt-0.5 truncate text-slate-400', mono && 'font-mono text-xs')}>
+                        {value}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-slate-300 font-mono">read-only</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Save button */}
+              <div className="flex justify-end mt-4">
+                <button
+                  type="submit"
+                  disabled={isSaving || !isDirty}
+                  className={cn(
+                    'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold font-display transition-all duration-150',
+                    isSaving || !isDirty
+                      ? 'bg-cream-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-brand-500 text-white hover:bg-brand-600 shadow-card hover:shadow-elevated'
+                  )}
+                >
+                  {isSaving ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                  ) : (
+                    <><Check className="w-4 h-4" /> Save changes</>
+                  )}
+                </button>
+              </div>
+            </motion.form>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* ── Behaviour analysis ── */}
@@ -144,12 +356,10 @@ export default function ProfilePage() {
 
         {behavior && a && (
           <div className="space-y-4">
-            {/* Summary */}
             <div className="card bg-brand-50/40 border-brand-100">
               <p className="text-sm text-slate-600 leading-relaxed italic">{behavior.summary}</p>
             </div>
 
-            {/* Trait grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {[
                 { label: 'Tone',          value: a.tone,         icon: <MessageSquare className="w-4 h-4" />, color: 'bg-brand-50 text-brand-500' },
@@ -167,16 +377,15 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* Score bars */}
             <div className="card space-y-4">
               <p className="text-xs font-mono text-slate-400 uppercase tracking-widest mb-1">Signal scores</p>
               {[
-                { label: 'Positivity bias',       value: a.positivityBias,         color: 'bg-emerald-400' },
-                { label: 'Emotional consistency', value: a.emotionalConsistency,   color: 'bg-brand-400' },
-                { label: 'Enthusiasm',            value: a.enthusiasmScore,        color: 'bg-amber-400' },
-                { label: 'Strictness',            value: a.strictnessEstimate,     color: 'bg-purple-400' },
-                { label: 'Sarcasm likelihood',    value: a.sarcasmLikelihood,      color: 'bg-rose-400' },
-                { label: 'Complaint frequency',   value: a.complaintFrequency,     color: 'bg-red-400' },
+                { label: 'Positivity bias',       value: a.positivityBias,       color: 'bg-emerald-400' },
+                { label: 'Emotional consistency', value: a.emotionalConsistency, color: 'bg-brand-400' },
+                { label: 'Enthusiasm',            value: a.enthusiasmScore,      color: 'bg-amber-400' },
+                { label: 'Strictness',            value: a.strictnessEstimate,   color: 'bg-purple-400' },
+                { label: 'Sarcasm likelihood',    value: a.sarcasmLikelihood,    color: 'bg-rose-400' },
+                { label: 'Complaint frequency',   value: a.complaintFrequency,   color: 'bg-red-400' },
               ].map((bar) => (
                 <div key={bar.label}>
                   <p className="text-xs text-slate-500 mb-1">{bar.label}</p>
@@ -185,7 +394,6 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* Sentiment */}
             <div className="grid grid-cols-2 gap-3">
               <div className="card text-center hover:shadow-elevated transition-all">
                 <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-1">Positivity ratio</p>
@@ -201,7 +409,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Contextual preferences */}
             {a.contextualPreferences.length > 0 && (
               <div>
                 <p className="text-xs font-mono text-slate-400 uppercase tracking-widest mb-2">Contextual preferences</p>

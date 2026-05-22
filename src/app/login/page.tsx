@@ -27,7 +27,12 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) router.replace('/dashboard');
+    // Only redirect if Zustand has hydrated and the user is authenticated.
+    // We check hasHydrated() so we don't fire this during the initial SSR/hydration
+    // gap and accidentally redirect someone who is already on /profile or /history.
+    if (useAuthStore.persist.hasHydrated() && isAuthenticated) {
+      router.replace('/dashboard');
+    }
   }, [isAuthenticated, router]);
 
   const {
