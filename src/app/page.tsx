@@ -206,7 +206,7 @@ export default function LandingPage() {
           </div>
           <span className="font-display font-semibold text-sm text-slate-950">KoreRec</span>
         </div>
-        <p className="text-xs text-slate-400">© 2025 KoreRec. Built for the hackathon.</p>
+        <p className="text-xs text-slate-400">© 2026 KoreRec</p>
       </footer>
     </div>
   );
