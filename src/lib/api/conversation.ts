@@ -1,5 +1,5 @@
 import apiClient from '@/lib/axios';
-import { Conversation, ConversationMessage } from '@/types';
+import { Conversation, ConversationMessage, Recommendation } from '@/types';
 
 export const conversationService = {
   list: async (): Promise<Conversation[]> => {
@@ -22,6 +22,13 @@ export const conversationService = {
 
   getConversation: async (conversationId: string): Promise<Conversation> => {
     const { data } = await apiClient.get<Conversation>(`v1/Conversation/${conversationId}`);
+    return data;
+  },
+
+  getRecommendations: async (conversationId: string): Promise<Recommendation[]> => {
+    const { data } = await apiClient.post<Recommendation[]>(
+      `v1/Recommendations/conversation/${conversationId}`
+    );
     return data;
   },
 };

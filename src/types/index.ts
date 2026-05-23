@@ -113,6 +113,20 @@ export interface ParsedAIResponse {
   emotion?: string;
 }
 
+// ─── Recommendations ─────────────────────────────────────────────────────────
+ 
+export interface Recommendation {
+  id: string;
+  title: string;
+  description: string;
+  domain: number;
+  sourceId: string;
+  url: string;
+  price?: number | null;
+  confidence: number;
+  createdAt: string;
+}
+
 // ─── Generic error ───────────────────────────────────────────────────────────
 
 export interface ApiError {

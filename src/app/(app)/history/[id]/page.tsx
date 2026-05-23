@@ -1,4 +1,4 @@
-"use client"
+'use client';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -6,8 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversationDetail } from '@/hooks/useConversationHistory';
 import { useConversation, parseAssistantContent } from '@/hooks/useConversation';
+import { useRecommendations } from '@/hooks/useRecommendations';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate } from '@/lib/utils';
+import { RecommendationsPanel } from '@/components/features/RecommendationsPanel';
 import {
   ArrowLeft, Clock, MessageSquare, Sparkles, Zap, Brain,
   Loader2, AlertCircle, Send, Plus,
@@ -189,18 +191,22 @@ export default function HistoryDetailPage() {
   // Live chat hook — we load the historical conversation into it so we can continue
   const { conversation, isSending, isStarting, loadConversation, sendMessage } = useConversation();
 
+  // Recommendations for this conversation
+  const { recommendations, isLoading: recsLoading, fetchRecommendations } = useRecommendations();
+
   const [input, setInput] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Once fetched, load into the live hook
+  // Once fetched, load into the live hook and fetch existing recommendations
   useEffect(() => {
     if (historicalConv && !isLoaded) {
       loadConversation(historicalConv);
+      fetchRecommendations(historicalConv.id);
       setIsLoaded(true);
     }
-  }, [historicalConv, isLoaded, loadConversation]);
+  }, [historicalConv, isLoaded, loadConversation, fetchRecommendations]);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -211,7 +217,11 @@ export default function HistoryDetailPage() {
     const text = input.trim();
     if (!text || isSending || isStarting) return;
     setInput('');
-    await sendMessage(text);
+    const result = await sendMessage(text);
+    if (result) {
+      // Refresh recommendations after each new message
+      fetchRecommendations(id);
+    }
     // Refresh history list and this conversation's cache
     queryClient.invalidateQueries({ queryKey: ['conversation-history', userId] });
     queryClient.invalidateQueries({ queryKey: ['conversation', id] });
@@ -355,6 +365,11 @@ export default function HistoryDetailPage() {
         <p className="text-center text-[10px] text-slate-300 mt-2">
           AI remembers the full context of this conversation
         </p>
+      </div>
+
+      {/* ── Recommendations (inline drawer) ── */}
+      <div className="-mx-4 md:-mx-6">
+        <RecommendationsPanel recommendations={recommendations} isLoading={recsLoading} inline />
       </div>
     </div>
   );
