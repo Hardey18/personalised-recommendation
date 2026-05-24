@@ -134,3 +134,72 @@ export interface ApiError {
   stack?: string;
 }
 
+// ─── User Reviews ─────────────────────────────────────────────────────────────
+ 
+export interface ReviewUser {
+  userId: string;
+  reviewCount: number;
+  averageRating: number;
+  cities: string[];
+  favoriteCategories: string[];
+}
+ 
+export interface ReviewUsersResponse {
+  items: ReviewUser[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+ 
+export interface ReviewItem {
+  itemId: string;
+  itemName: string;
+  reviewRating: number;
+  reviewText: string;
+  city: string;
+  timestamp: string;
+  categories: string[];
+}
+ 
+export interface BehavioralProfile {
+  tone: string;
+  writingStyle: string;
+  positivityBias: number;
+  strictnessEstimate: number;
+  sarcasmLikelihood: number;
+  contextualPreferences: string[];
+}
+ 
+export interface ReviewUserDetail {
+  userId: string;
+  totalReviews: number;
+  averageRating: number;
+  strictnessScore: number;
+  positivityRatio: number;
+  negativityRatio: number;
+  favoriteCategories: string[];
+  behavioralProfile: BehavioralProfile;
+  reviews: {
+    items: ReviewItem[];
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+  };
+}
+ 
+export interface SimulateReviewPayload {
+  userId: string;
+  itemId: string;
+  itemName: string;
+  categories: string[];
+  itemAvgRating: number;
+  itemText: string;
+  simulatedRating: number;
+}
+ 
+export interface SimulateReviewResponse {
+  predictedRating: number;
+  generatedReview: string;
+}

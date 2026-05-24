@@ -7,9 +7,10 @@ import { getInitials } from '@/lib/utils';
 import Link from 'next/link';
 
 const pageTitles: Record<string, { title: string; desc: string }> = {
-  '/dashboard': { title: 'Dashboard', desc: 'Discover personalised recommendations' },
-  '/history': { title: 'Search History', desc: 'Review and revisit your past searches' },
-  '/profile': { title: 'My Profile', desc: 'Manage your account and preferences' },
+  '/dashboard': { title: 'Dashboard',    desc: 'Discover personalised recommendations' },
+  '/history':   { title: 'Search History', desc: 'Review and revisit your past searches' },
+  '/reviews':   { title: 'User Reviews', desc: 'Explore reviewer profiles and simulate reviews' },
+  '/profile':   { title: 'My Profile',   desc: 'Manage your account and preferences' },
 };
 
 export function Header() {

@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, History, User } from 'lucide-react';
+import { LayoutDashboard, History, User, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/history', label: 'History', icon: History },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/history',   label: 'History',   icon: History },
+  { href: '/reviews',   label: 'Reviews',   icon: Star },
+  { href: '/profile',   label: 'Profile',   icon: User },
 ];
 
 export function MobileNav() {

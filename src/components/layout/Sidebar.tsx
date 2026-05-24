@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Sparkles, LayoutDashboard, History, User, LogOut, ChevronLeft,
+  Sparkles, LayoutDashboard, History, User, LogOut, ChevronLeft, Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLogout } from '@/hooks/useAuth';
@@ -14,8 +14,9 @@ import { useState } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/history', label: 'History', icon: History },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/history',   label: 'History',   icon: History },
+  { href: '/reviews',   label: 'Reviews',   icon: Star },
+  { href: '/profile',   label: 'Profile',   icon: User },
 ];
 
 export function Sidebar() {
@@ -110,7 +111,7 @@ export function Sidebar() {
 
       {/* Collapse toggle */}
       <button
-        title='Collapse'
+        title='Left Arrow'
         onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-20 w-6 h-6 bg-white border border-cream-200 rounded-full flex items-center justify-center shadow-soft hover:bg-cream-100 transition-colors z-10"
       >
